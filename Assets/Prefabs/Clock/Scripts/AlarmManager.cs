@@ -5,7 +5,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class AlarmManager : MonoBehaviour, ITimeKeeper
+public class AlarmManager : MonoBehaviour
 {
     public static AlarmManager instance;
 
@@ -34,10 +34,13 @@ public class AlarmManager : MonoBehaviour, ITimeKeeper
     {
         if (instance == null)
             instance = this;
-        else if (instance == this)
+        else if (instance != this)
+        {
             Destroy(gameObject);
+            return;
+        }
 
-        DontDestroyOnLoad(gameObject);
+        DontDestroyOnLoad(transform.root.gameObject);
 
         SetButton.interactable = false;
         RemoveButton.interactable = false;
@@ -55,19 +58,12 @@ public class AlarmManager : MonoBehaviour, ITimeKeeper
             {
                 fullRotations++;
             }
-            //else if (angleDelta > 180) // Переход от 0 к 360
-            //{
-            //    fullRotations++;
-            //}
 
             previousAngle = angle;
 
             // Рассчитываем час, принимая во внимание количество полных оборотов
             int hour = (11 - (int)(angle / 30)) + (fullRotations * 12) % 24;
 
-            //// Приводим значение часа в диапазон от 0 до 23
-            //if (hour < 0) hour += 24;
-            //if (hour >= 24) hour -= 24;
 
             // Обновляем текстовое поле
             hourIF.text = hour.ToString();
@@ -84,31 +80,22 @@ public class AlarmManager : MonoBehaviour, ITimeKeeper
             secondIF.onValueChanged?.Invoke(secondIF.text);
         };
 
-        //HourArrow.OnDragFinished += () => SetAlarm();
-        //MinuteArrow.OnDragFinished += () => SetAlarm();
-        //SecondArrow.OnDragFinished += () => SetAlarm();
+        hourIF.onSelect.AddListener((_) => SetEmptyStringsToZero());
+        minuteIF.onSelect.AddListener((_) => SetEmptyStringsToZero());
+        secondIF.onSelect.AddListener((_) => SetEmptyStringsToZero());
 
-        //hourIF.onSelect.AddListener((_) => SetEmptyStringsToZero());
-        //minuteIF.onSelect.AddListener((_) => SetEmptyStringsToZero());
-        //secondIF.onSelect.AddListener((_) => SetEmptyStringsToZero());
 
         hourIF.onEndEdit.AddListener(input =>
         {
             // Допустимые значения [0;23]
             if (!Regex.IsMatch(input, @"^(?:[0-9]|1[0-9]|2[0-3])$"))
                 hourIF.text = "0";
-
-            if (CheckValueChanged())
-                SetButton.interactable = true;
         });
         minuteIF.onEndEdit.AddListener(input =>
         {
             // Допустимые значения [0;59]
             if (!Regex.IsMatch(input, @"^([0-5]?[0-9])$"))
                 minuteIF.text = "0";
-
-            if (CheckValueChanged())
-                SetButton.interactable = true;
         });
         secondIF.onEndEdit.AddListener(input =>
         {
@@ -117,34 +104,32 @@ public class AlarmManager : MonoBehaviour, ITimeKeeper
                 secondIF.text = "0";
         });
 
-        hourIF.onValueChanged.AddListener((value) =>
-        {
-            if (value != "")
-                SetEmptyStringsToZero();
+        hourIF.onValueChanged.AddListener((value) => OnInputFieldValueChanged(value));
+        minuteIF.onValueChanged.AddListener((value) => OnInputFieldValueChanged(value));
+        secondIF.onValueChanged.AddListener((value) => OnInputFieldValueChanged(value));
+    }
 
-            if (CheckValueChanged())
-                SetButton.interactable = true;
-        });
-        minuteIF.onValueChanged.AddListener((value) =>
-        {
-            if (value != "")
-                SetEmptyStringsToZero();
+    private void OnInputFieldValueChanged(string value)
+    {
+        if (value != "")
+            SetEmptyStringsToZero();
 
-            if (CheckValueChanged())
-                SetButton.interactable = true;
-        });
-        secondIF.onValueChanged.AddListener((value) =>
-        {
-            if(value != "")
-                SetEmptyStringsToZero();
-
-            if (CheckValueChanged())
-                SetButton.interactable = true;
-        });
+        if (CheckValueChanged())
+            SetButton.interactable = true;
     }
 
     bool CheckValueChanged()
     {
+        if (TryGetIFTime(out DateTime time))
+            if (time.Equals(alarmAtTime))
+                return false;
+
+        return true;
+    }
+
+    private bool TryGetIFTime(out DateTime time)
+    {
+        time = DateTime.MinValue;
         if (int.TryParse(hourIF.text, out int hour) == false)
             return false;
 
@@ -154,13 +139,12 @@ public class AlarmManager : MonoBehaviour, ITimeKeeper
         if (int.TryParse(secondIF.text, out int second) == false)
             return false;
 
-        if (alarmTimer == null)
-            return true;
-
-        DateTime time = new DateTime(DateTime.MinValue.Year, DateTime.MinValue.Month, DateTime.MinValue.Day, hour, minute, second);
-        if (time.Equals(alarmAtTime))
-            return false;
-
+        time = new DateTime(DateTime.MinValue.Year,
+                                     DateTime.MinValue.Month,
+                                     DateTime.MinValue.Day,
+                                     hour,
+                                     minute,
+                                     second);
         return true;
     }
 
@@ -189,11 +173,11 @@ public class AlarmManager : MonoBehaviour, ITimeKeeper
         if (alarmTimer == null)
             return;
 
-        CalculateAlarmTimer(currentTime);
+        SetAlarmTimer(currentTime);
     }
 
     // Пересчёт таймера на основе текущего времени
-    private void CalculateAlarmTimer(DateTime currentTime)
+    private void SetAlarmTimer(DateTime currentTime)
     {
         if (alarmTimer != null)
             StopCoroutine(alarmTimer);
@@ -204,43 +188,18 @@ public class AlarmManager : MonoBehaviour, ITimeKeeper
         Debug.Log(timeUntilAlarm);
 
         if (timeUntilAlarm < TimeSpan.Zero) // Если текущее время уже больше времени будильника
-        {
             // Будильник должен сработать на следующий день
             timeUntilAlarm = timeUntilAlarm.Add(TimeSpan.FromDays(1));
-        }
 
         alarmTimer = StartCoroutine(AlarmTimer((float)timeUntilAlarm.TotalSeconds));
 
     }
 
-    // Проверка, совпадает ли текущее время с временем будильника
-    void CheckAlarm(DateTime currentTime)
-    {
-        CalculateAlarmTimer(currentTime);
-    }
-
-    //public void PreviewAlarmTime(TimeSpan previewTime)
-    //{
-    //    hourIF.text = previewTime.TimeOfDay.Hours.ToString();
-    //    minuteIF.text = previewTime.TimeOfDay.Minutes.ToString();
-    //    secondIF.text = previewTime.TimeOfDay.Seconds.ToString();
-    //}
-
     // Вызывается кнопкой Set в будильнике
     public void SetAlarm()
     {
-        if (int.TryParse(hourIF.text, out int hour) == false)
-            return;
-
-        if (int.TryParse(minuteIF.text, out int minute) == false)
-            return;
-
-        if (int.TryParse(secondIF.text, out int second) == false)
-            return;
-
-        DateTime time = new DateTime(DateTime.MinValue.Year, DateTime.MinValue.Month, DateTime.MinValue.Day, hour, minute, second);
-
-        SetAlarm(time);
+        if (TryGetIFTime(out DateTime time))
+            SetAlarm(time);
     }
 
     // Устанавливаем новое время будильника
@@ -252,10 +211,11 @@ public class AlarmManager : MonoBehaviour, ITimeKeeper
 
         alarmAtTime = time;
 
+        // Если таймера нет, значит не подписывались
         if (alarmTimer == null)
             ClockManager.instance.OnTimeRefreshed += RecalculateAlarmTimer;
 
-        CheckAlarm(ClockManager.instance.CurrentTime); // Мгновенно проверяем будильник на момент установки
+        SetAlarmTimer(ClockManager.instance.CurrentTime);
 
         SetButton.interactable = false;
         RemoveButton.interactable = true;
@@ -266,22 +226,14 @@ public class AlarmManager : MonoBehaviour, ITimeKeeper
     {
         RemoveButton.interactable = false;
 
-        //hourIF.placeholder.GetComponent<TextMeshProUGUI>().text = hourIF.text;
         hourIF.text = "";
-
-        //minuteIF.placeholder.GetComponent<TextMeshProUGUI>().text = minuteIF.text;
         minuteIF.text = "";
-
-        //secondIF.placeholder.GetComponent<TextMeshProUGUI>().text = secondIF.text;
         secondIF.text = "";
 
         ClockManager.instance.OnTimeRefreshed -= RecalculateAlarmTimer;
 
-        if (alarmTimer != null)
-        {
-            StopCoroutine(alarmTimer);
-            alarmTimer = null;
-        }
+        StopCoroutine(alarmTimer);
+        alarmTimer = null;
 
         SoundManager.instance.StopSound();
     }
@@ -307,12 +259,7 @@ public class AlarmManager : MonoBehaviour, ITimeKeeper
 
     private void OnDestroy()
     {
-        // Очищаем подписки при уничтожении объекта
-        ClockManager.instance.OnTimeRefreshed -= RecalculateAlarmTimer;
-    }
-
-    public DateTime GetTime()
-    {
-        return alarmAtTime;
+        if (alarmTimer != null)
+            ClockManager.instance.OnTimeRefreshed -= RecalculateAlarmTimer;
     }
 }

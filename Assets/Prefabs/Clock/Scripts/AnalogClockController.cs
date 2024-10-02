@@ -25,7 +25,7 @@ public class AnalogClockController : MonoBehaviour, ITimeDisplayer
         MinuteArrow.transform.rotation = Quaternion.Euler(0, 0, -minutes * 6f);
 
         // ƒл€ секундной стрелки: 360 градусов = 60 секунд, т.е. 6 градусов на каждую секунду
-        float seconds = time.Second + time.Millisecond / 1000f;  // ƒобавл€ем плавность через миллисекунды
+        float seconds = time.Second + time.Millisecond / 1000f;  // ƒобавл€ем точность через миллисекунды
         SecondArrow.transform.rotation = Quaternion.Euler(0, 0, -seconds * 6f);
     }
 
@@ -33,7 +33,8 @@ public class AnalogClockController : MonoBehaviour, ITimeDisplayer
     {
         if(displayAlarm == false)
         {
-            float seconds = Time.deltaTime;  // ƒобавл€ем плавность через миллисекунды
+            // ƒобавл€ем плавность дл€ перемещени€ секундной стрелки
+            float seconds = Time.deltaTime;  
             SecondArrow.transform.rotation *= Quaternion.Euler(0, 0, -seconds * 6f);
         }
     }
@@ -52,6 +53,7 @@ public class AnalogClockController : MonoBehaviour, ITimeDisplayer
         SecondArrow.OnDragFinished += StartTimer;
     }
 
+    // ќстанавливаем поворот стрелок, дл€ того чтобы задать врем€ дл€ будильника
     void Stop()
     {
         if (startTimer != null)
@@ -61,6 +63,7 @@ public class AnalogClockController : MonoBehaviour, ITimeDisplayer
         displayAlarm = true;
     }
 
+    // ¬озобновл€ем поворот стрелок
     void StartTimer()
     {
         if (startTimer != null)
@@ -68,6 +71,7 @@ public class AnalogClockController : MonoBehaviour, ITimeDisplayer
         startTimer = StartCoroutine(Timer());
     }
 
+    // “ймер дл€ возобновлени€ поворота стрелок
     IEnumerator Timer()
     {
         yield return new WaitForSeconds(10);

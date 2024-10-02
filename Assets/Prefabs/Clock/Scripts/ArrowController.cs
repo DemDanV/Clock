@@ -10,30 +10,30 @@ public class ArrowController : MonoBehaviour, IPointerDownHandler, IPointerUpHan
     [SerializeField] float scaleMultiplayer = 1.4f;
     [SerializeField] float animationSpeed = 1f;
 
-    // returns pointer angle
     public Action OnDragStarted;
-
     // returns pointer angle
     public Action<float> OnDrag;
-
-    // returns pointer angle
     public Action OnDragFinished;
 
     Coroutine changeSizeAnimation = null;
 
+    // При нажатии на стрелку, начинаем отслеживать касание пока оно удерживается
     public void OnPointerDown(PointerEventData eventData)
     {
+        // Запоминаем касание, чтобы его отслеживать
         eventDataMemory = eventData;
-        Debug.Log("OnPointerDown");
         OnDragStarted?.Invoke();
 
+        // Анимируем
         if (changeSizeAnimation != null)
             StopCoroutine(changeSizeAnimation);
         changeSizeAnimation = StartCoroutine(ChangeSize());
 
+        // Следим за касанием
         StartCoroutine(CheckPosition());
     }
 
+    // Уведомляем о точке касания и указываем на точку касания
     IEnumerator CheckPosition()
     {
         while (eventDataMemory != null)
@@ -47,9 +47,7 @@ public class ArrowController : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
             // Приводим угол в диапазон [0, 360]
             if (angle < 0)
-            {
                 angle += 360;
-            }
 
             // Вызываем событие OnDrag
             OnDrag?.Invoke(angle);
@@ -61,6 +59,7 @@ public class ArrowController : MonoBehaviour, IPointerDownHandler, IPointerUpHan
         }
     }
 
+    // "Приподнимаем" стрелку пока ее тянут, потом опускаем
     IEnumerator ChangeSize()
     {
         while(eventDataMemory != null)
@@ -82,7 +81,6 @@ public class ArrowController : MonoBehaviour, IPointerDownHandler, IPointerUpHan
 
     public void OnPointerUp(PointerEventData eventData)
     {
-        Debug.Log("OnPointerUp");
         eventDataMemory = null;
         OnDragFinished?.Invoke();
     }
